@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Recap Generator — ACD Direct Primerica</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --navy:#1a2744;--blue:#2563eb;--blue-lt:#eff6ff;
+  --green:#16a34a;--green-lt:#f0fdf4;--green-bd:#bbf7d0;
+  --amber:#d97706;--amber-lt:#fffbeb;--amber-bd:#fde68a;
+  --red:#dc2626;--red-lt:#fef2f2;--red-bd:#fecaca;
+  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g400:#9ca3af;--g600:#4b5563;--g800:#1f2937;
+  --r:9px;--sh:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:'DM Sans',sans-serif;background:#eef2f7;color:var(--g800);min-height:100vh;}
+
+/* ── Header ── */
+.header{background:linear-gradient(135deg,var(--navy),#1e3a8a);padding:18px 28px;border-bottom:3px solid var(--blue);display:flex;align-items:center;justify-content:space-between;}
+.header-left h1{color:white;font-size:20px;font-weight:700;letter-spacing:-.3px;}
+.header-left p{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px;}
+.header-right{display:flex;gap:6px;}
+.hbadge{font-size:10px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.15);}
+
+/* ── Layout ── */
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+
+/* ── Cards ── */
+.card{background:white;border-radius:var(--r);border:1px solid var(--g200);box-shadow:var(--sh);margin-bottom:14px;overflow:hidden;}
+.card-hd{padding:12px 18px;border-bottom:1px solid var(--g100);display:flex;align-items:center;gap:9px;background:var(--g50);}
+.card-hd h2{font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.7px;}
+.step-dot{width:22px;height:22px;border-radius:50%;background:var(--blue);color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.3s;}
+.step-dot.done{background:var(--green);}
+.card-bd{padding:20px;}
+
+/* ── Drop Zone ── */
+.dz{border:2px dashed var(--blue);border-radius:8px;padding:28px 20px;text-align:center;background:var(--blue-lt);cursor:pointer;transition:.15s;margin-bottom:14px;}
+.dz:hover,.dz.over{border-color:#1d4ed8;background:#dbeafe;transform:scale(1.005);}
+.dz-icon{font-size:30px;margin-bottom:8px;}
+.dz p{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:3px;}
+.dz small{font-size:11px;color:var(--g600);}
+
+/* ── File Chips ── */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.chip{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid;animation:pop .2s ease;}
+@keyframes pop{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+.rm-btn{background:none;border:none;cursor:pointer;opacity:.4;font-size:13px;padding:0;line-height:1;margin-left:2px;}
+.rm-btn:hover{opacity:1;}
+.chip.cdr{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.chip.eval{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe;}
+.chip.us{background:#f0fdf4;color:#15803d;border-color:#bbf7d0;}
+.chip.roster{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+.chip.sched{background:#fdf4ff;color:#7e22ce;border-color:#e9d5ff;}
+.chip.unk{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+
+/* ── Config ── */
+.date-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.goals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.gc{background:var(--g50);border:1px solid var(--g200);border-radius:7px;padding:10px 12px;}
+.gc label{font-size:9px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;}
+.gc .gr{display:flex;align-items:center;gap:6px;}
+.gc input[type=number]{width:72px;border:1px solid var(--g200);border-radius:5px;padding:5px 8px;font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--navy);background:white;}
+.gc input[type=number]:focus{outline:none;border-color:var(--blue);}
+.gc span{font-size:11px;color:var(--g400);}
+.lbl{font-size:10px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;}
+.di{width:100%;border:1px solid var(--g200);border-radius:6px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--navy);}
+.di:focus{outline:none;border-color:var(--blue);}
+.sec-lbl{font-size:10px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;}
+.btn-blue{background:var(--blue);color:white;} .btn-blue:hover{background:#1d4ed8;}
+.btn-blue:disabled{background:var(--g400);cursor:not-allowed;}
+.btn-green{background:var(--green);color:white;} .btn-green:hover{background:#15803d;}
+.btn-ghost{background:white;color:var(--g600);border:1px solid var(--g200);} .btn-ghost:hover{background:var(--g50);}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:6px;}
+
+/* ── Results ── */
+.res-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.res-ct{font-size:13px;font-weight:600;color:var(--g600);}
+.search-bar{display:flex;align-items:center;gap:8px;}
+.search-bar input{border:1px solid var(--g200);border-radius:6px;padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--navy);width:200px;}
+.search-bar input:focus{outline:none;border-color:var(--blue);}
+
+/* ── Agent Cards ── */
+.ag-card{background:white;border:1px solid var(--g200);border-radius:8px;margin-bottom:10px;overflow:hidden;box-shadow:var(--sh);transition:box-shadow .15s;}
+.ag-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.1);}
+.ag-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;transition:.1s;user-select:none;}
+.ag-hd:hover{background:var(--g50);}
+.ag-lft{display:flex;align-items:center;gap:12px;}
+.ava{width:38px;height:38px;border-radius:50%;background:var(--navy);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.ag-name{font-size:14px;font-weight:700;}
+.ag-sub{font-size:11px;color:var(--g400);margin-top:2px;}
+.ag-rt{display:flex;align-items:center;gap:8px;}
+.badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.badge-g{background:var(--green-lt);color:var(--green);}
+.badge-a{background:var(--amber-lt);color:var(--amber);}
+.badge-r{background:var(--red-lt);color:var(--red);}
+.badge-x{background:var(--g100);color:var(--g600);}
+.chev{font-size:12px;color:var(--g400);transition:transform .2s;}
+.chev.open{transform:rotate(180deg);}
+.ag-body{display:none;border-top:1px solid var(--g100);}
+.ag-body.open{display:block;animation:fd .18s ease;}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+
+/* ── Metrics Mini Grid ── */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:14px 16px 0;}
+.mc{border-radius:6px;padding:8px 10px;border:1px solid;}
+.mc.ok{background:var(--green-lt);border-color:var(--green-bd);}
+.mc.warn{background:var(--amber-lt);border-color:var(--amber-bd);}
+.mc.na{background:var(--g50);border-color:var(--g200);}
+.mc .ml{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--g400);margin-bottom:2px;}
+.mc .mv{font-size:13px;font-weight:700;font-family:'DM Mono',monospace;}
+.mc.ok .mv{color:var(--green);} .mc.warn .mv{color:var(--amber);} .mc.na .mv{color:var(--g600);}
+
+/* ── Email Preview ── */
+.prev-wrap{margin:14px 16px 0;border:1px solid var(--g200);border-radius:8px;overflow:hidden;}
+.prev-bar{background:var(--g50);border-bottom:1px solid var(--g200);padding:8px 13px;display:flex;align-items:center;justify-content:space-between;}
+.prev-bar-left{display:flex;align-items:center;gap:10px;}
+.prev-dots{display:flex;gap:5px;}
+.prev-dot{width:10px;height:10px;border-radius:50%;}
+.prev-bar span{font-size:11px;font-weight:600;color:var(--g600);}
+.prev-bar small{font-size:10px;color:var(--g400);}
+.prev-frame{width:100%;border:none;height:540px;background:white;display:block;}
+.copy-row{padding:12px 16px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.copied-msg{font-size:11px;font-weight:600;opacity:0;transition:opacity .3s;}
+.copied-msg.show{opacity:1;}
+.copied-msg.ok{color:var(--green);}
+.copied-msg.er{color:var(--red);}
+
+/* ── Alerts ── */
+.alert{font-size:12px;padding:8px 12px;border-radius:6px;display:flex;align-items:center;gap:6px;margin-bottom:12px;}
+.alert-a{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd);}
+.alert-b{background:var(--blue-lt);color:var(--blue);border:1px solid #bfdbfe;}
+.alert-g{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd);}
+
+/* ── Spinner ── */
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Misc ── */
+.hidden{display:none!important;}
+.divider{height:1px;background:var(--g100);margin:12px 0;}
+
+/* ── Footer ── */
+.page-footer{text-align:center;padding:20px;color:var(--g400);font-size:11px;}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div class="header">
+  <div class="header-left">
+    <h1>📋 Weekly Recap Generator</h1>
+    <p>ACD Direct — Primerica Program</p>
+  </div>
+  <div class="header-right">
+    <span class="hbadge">v1.0</span>
+    <span class="hbadge">No data leaves your browser</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ── STEP 1: Upload ────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="step-dot" id="d1">1</div>
+      <h2>Upload Weekly Reports</h2>
+    </div>
+    <div class="card-bd">
+      <div class="dz" id="dz"
+           onclick="document.getElementById('fi').click()"
+           ondragover="dzOver(event)"
+           ondragleave="dzOut(event)"
+           ondrop="dzDrop(event)">
+        <div class="dz-icon">📂</div>
+        <p>Drop your CSV files here, or click to browse</p>
+        <small>CDR Report &nbsp;·&nbsp; QA Evaluations &nbsp;·&nbsp; User State Detail &nbsp;·&nbsp; Roster &nbsp;·&nbsp; Schedule (optional)</small>
+      </div>
+      <input type="file" id="fi" accept=".csv" multiple style="display:none" onchange="onFiles(event)">
+
+      <div class="chips" id="chips"></div>
+      <div id="needMsg"></div>
+
+      <button class="btn btn-blue hidden" id="btn1" onclick="goStep2()">
+        Continue to Configure →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Configure ─────────────────────────────────────────────────── -->
+  <div class="card hidden" id="c2">
+    <div class="card-hd">
+      <div class="step-dot" id="d2">2</div>
+      <h2>Set Week &amp; Performance Goals</h2>
+    </div>
+    <div class="card-bd">
+      <div class="sec-lbl">Reporting Week</div>
+      <div class="date-row" style="margin-bottom:20px;">
+        <div><label class="lbl">Start Date</label><input class="di" type="date" id="wS"></div>
+        <div><label class="lbl">End Date</label><input class="di" type="date" id="wE"></div>
+      </div>
+
+      <div class="sec-lbl">Performance Goals</div>
+      <div class="goals-grid">
+        <div class="gc">
+          <label>QA Min Score</label>
+          <div class="gr"><input type="number" id="gQA" value="85" min="0" max="100"><span>%</span></div>
+        </div>
+        <div class="gc">
+          <label>Max AHT</label>
+          <div class="gr"><input type="number" id="gAHT" value="7.5" min="0" step=".5"><span>min</span></div>
+        </div>
+        <div class="gc">
+          <label>Max Denied Calls</label>
+          <div class="gr"><input type="number" id="gDen" value="4" min="0"><span>calls</span></div>
+        </div>
+        <div class="gc">
+          <label>Max ACW (Weekly)</label>
+          <div class="gr"><input type="number" id="gACW" value="90" min="0"><span>min</span></div>
+        </div>
+        <div class="gc">
+          <label>Max Hold (Weekly)</label>
+          <div class="gr"><input type="number" id="gHold" value="60" min="0"><span>min</span></div>
+        </div>
+        <div class="gc">
+          <label>Max Not Ready</label>
+          <div class="gr"><input type="number" id="gNR" value="20" min="0"><span>min</span></div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-blue" id="btnGen" onclick="generate()">
+          🚀 Generate All Recaps
+        </button>
+        <button class="btn btn-ghost" onclick="goStep1()">← Back</button>
+        <span id="genMsg" style="font-size:11px;color:var(--amber);"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Results ───────────────────────────────────────────────────── -->
+  <div id="resSection" class="hidden">
+    <div class="res-hd">
+      <div class="res-ct" id="resCt"></div>
+      <div class="search-bar">
+        <input type="text" id="searchBox" placeholder="🔍 Search agents..." oninput="filterAgents()" />
+        <button class="btn btn-ghost btn-sm" onclick="resetAll()">↩ Start Over</button>
+        <button class="btn btn-ghost btn-sm" onclick="backToCfg()">⚙️ Change Week</button>
+      </div>
+    </div>
+    <div id="filterMsg" style="margin-bottom:10px;"></div>
+    <div id="agCards"></div>
+  </div>
+
+</div>
+
+<div class="page-footer">
+  Weekly Recap Generator &nbsp;·&nbsp; ACD Direct – Primerica Program &nbsp;·&nbsp; All data stays in your browser — nothing is uploaded or stored externally.
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const UF = {};                  // uploaded files by detected type
+const NEED = ['cdr','eval','us'];
+let _allAgents = [];
+let _emails = [];
+let _wLabel = '';
+let _goals = {};
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const nn   = s => s?.trim().toLowerCase().replace(/\s+/g,' ') || '';
+const ini  = n => n.split(' ').map(x => x[0]||'').join('').slice(0,2).toUpperCase();
+const fd   = d => d ? `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}` : 'N/A';
+const pd   = s => { if(!s) return null; const d = new Date(s); return isNaN(d) ? null : d; };
+const $    = id => document.getElementById(id);
+
+function parseDur(s) {
+  if (!s || s === '' || s === '0') return 0;
+  const p = String(s).trim().split(':');
+  try {
+    if (p.length === 3) return +p[0]*3600 + +p[1]*60 + parseFloat(p[2]);
+    if (p.length === 2) return +p[0]*60 + parseFloat(p[1]);
+  } catch(e) {}
+  return 0;
+}
+
+function fmtDur(s) {
+  if (!s || isNaN(s) || s <= 0) return '0:00';
+  s = Math.round(s);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sc = s%60;
+  if (h) return `${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+  return `${m}:${String(sc).padStart(2,'0')}`;
+}
+
+// ── File Detection ────────────────────────────────────────────────────────────
+const FINFO = {
+  cdr:   { label:'CDR / Call Detail',  cls:'cdr',    icon:'📞' },
+  eval:  { label:'QA Evaluations',     cls:'eval',   icon:'🎧' },
+  us:    { label:'User State Detail',  cls:'us',     icon:'🖥️'  },
+  roster:{ label:'Agent Roster',       cls:'roster', icon:'👥' },
+  sched: { label:'Schedule',           cls:'sched',  icon:'📅' },
+  survey:{ label:'Survey Insights',    cls:'sched',  icon:'📊' },
+  unk:   { label:'Unknown Format',     cls:'unk',    icon:'❓' },
+};
+
+function detect(cols) {
+  const has = k => cols.some(c => c.toLowerCase().includes(k.toLowerCase()));
+  if (has('Handle Time') && has('Denied'))              return 'cdr';
+  if (has('Evaluation Score') && has('Evaluator'))      return 'eval';
+  if (has('State Name') && has('State Duration'))       return 'us';
+  if (has('Survey Answer') || has('Survey Question'))   return 'survey';
+  if (has('Schedule') || has('Shift') || has('Login Time')) return 'sched';
+  if (has('Team Lead') || (has('Agent') && has('Supervisor'))) return 'roster';
+  return 'unk';
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+function dzOver(e) { e.preventDefault(); $('dz').classList.add('over'); }
+function dzOut(e)  { $('dz').classList.remove('over'); }
+function dzDrop(e) { e.preventDefault(); dzOut(); procFiles(e.dataTransfer.files); }
+function onFiles(e){ procFiles(e.target.files); }
+
+function procFiles(list) {
+  [...list].forEach(f => {
+    Papa.parse(f, {
+      header: true, skipEmptyLines: true,
+      complete: ({ data, meta }) => {
+        const type = detect(meta.fields || []);
+        UF[type] = { name: f.name, data, fields: meta.fields || [] };
+        renderChips();
+        checkNeed();
+      }
+    });
+  });
+}
+
+function renderChips() {
+  $('chips').innerHTML = Object.entries(UF).map(([t, f]) => {
+    const info = FINFO[t] || FINFO.unk;
+    return `<div class="chip ${info.cls}">
+      ${info.icon} ${info.label}
+      <span style="font-size:10px;opacity:.5;">(${f.data.length.toLocaleString()} rows)</span>
+      <button class="rm-btn" onclick="rmFile('${t}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function rmFile(t) { delete UF[t]; renderChips(); checkNeed(); }
+
+function checkNeed() {
+  const miss = NEED.filter(t => !UF[t]);
+  const btn  = $('btn1');
+  const msg  = $('needMsg');
+  if (!miss.length) {
+    msg.innerHTML = '';
+    btn.classList.remove('hidden');
+  } else if (Object.keys(UF).length > 0) {
+    const labels = miss.map(t => FINFO[t].label).join(', ');
+    msg.innerHTML = `<div class="alert alert-a">⚠️ Still needed: ${labels}</div>`;
+    btn.classList.add('hidden');
+  } else {
+    msg.innerHTML = '';
+    btn.classList.add('hidden');
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goStep2() {
+  $('d1').textContent = '✓'; $('d1').classList.add('done');
+  $('c2').classList.remove('hidden');
+  $('c2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function goStep1() {
+  $('c2').classList.add('hidden');
+}
+function backToCfg() {
+  $('resSection').classList.add('hidden');
+  $('c2').classList.remove('hidden');
+  $('c2').scrollIntoView({ behavior: 'smooth' });
+}
+function resetAll() {
+  $('resSection').classList.add('hidden');
+  $('c2').classList.add('hidden');
+  $('d1').textContent = '1'; $('d1').classList.remove('done');
+  $('d2').textContent = '2'; $('d2').classList.remove('done');
+  $('chips').innerHTML = '';
+  $('needMsg').innerHTML = '';
+  $('btn1').classList.add('hidden');
+  Object.keys(UF).forEach(k => delete UF[k]);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+function getGoals() {
+  return {
+    qa:      parseFloat($('gQA').value)   || 85,
+    ahtSec:  parseFloat($('gAHT').value)  * 60 || 450,
+    denied:  parseInt($('gDen').value)    || 4,
+    acwSec:  parseFloat($('gACW').value)  * 60 || 5400,
+    holdSec: parseFloat($('gHold').value) * 60 || 3600,
+    nrSec:   parseFloat($('gNR').value)   * 60 || 1200,
+  };
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+function generate() {
+  const ws  = $('wS').value, we = $('wE').value;
+  const msg = $('genMsg');
+  if (!ws || !we) { msg.textContent = '⚠️ Please select a date range.'; return; }
+  msg.textContent = '';
+  const btn = $('btnGen');
+  btn.innerHTML = '<span class="spin"></span> Processing...';
+  btn.disabled = true;
+  setTimeout(() => {
+    try {
+      _goals = getGoals();
+      _allAgents = compute(ws, we, _goals);
+      const d0 = new Date(ws+'T00:00:00'), d1 = new Date(we+'T00:00:00');
+      _wLabel = `${d0.getMonth()+1}/${d0.getDate()}/${String(d0.getFullYear()).slice(2)} – ${d1.getMonth()+1}/${d1.getDate()}/${String(d1.getFullYear()).slice(2)}`;
+      _emails = _allAgents.map(a => buildEmailHTML(a, _wLabel, _goals));
+      renderResults(_allAgents);
+      $('d2').textContent = '✓'; $('d2').classList.add('done');
+    } catch(e) {
+      msg.textContent = '❌ Error: ' + e.message;
+      console.error(e);
+    }
+    btn.innerHTML = '🚀 Generate All Recaps';
+    btn.disabled = false;
+  }, 60);
+}
+
+// ── Compute ───────────────────────────────────────────────────────────────────
+function compute(ws, we, G) {
+  const s0 = new Date(ws + 'T00:00:00'), s1 = new Date(we + 'T23:59:59');
+  const inW = d => d && d >= s0 && d <= s1;
+
+  // CDR
+  const agM = {};
+  if (UF.cdr) UF.cdr.data.forEach(row => {
+    const dt = pd(row['Date / Time']);
+    if (!inW(dt)) return;
+    const n = nn(row['User']); if (!n) return;
+    if (!agM[n]) agM[n] = { raw: (row['User']||'').trim(), calls:0, den:0, ht:[], days: new Set() };
+    const ht = parseDur(row['Handle Time']);
+    if (ht > 0) { agM[n].calls++; agM[n].ht.push(ht); }
+    agM[n].den += Number(row['Denied (Previously)'] || 0);
+    agM[n].days.add(dt.toDateString());
+  });
+
+  // User State
+  const stM = {};
+  if (UF.us) UF.us.data.forEach(row => {
+    const dt = pd(row['Start Time']);
+    if (!inW(dt)) return;
+    const n = nn(row['User Name']); if (!n) return;
+    if (!stM[n]) stM[n] = { acw:0, hold:0, nr:0 };
+    const dur = parseDur(row['State Duration']);
+    const st  = (row['State Name'] || '').toLowerCase().trim();
+    if (st === 'wrapup' || st.includes('additional call wrap')) stM[n].acw += dur;
+    else if (st === 'hold')                                      stM[n].hold += dur;
+    else if (st.includes('not ready'))                          stM[n].nr   += dur;
+  });
+
+  // QA Evaluations
+  const qaM = {};
+  if (UF.eval) UF.eval.data.forEach(row => {
+    const dt = pd(row['Date / Time']);
+    if (!inW(dt)) return;
+    const n = nn(row['User']); if (!n || qaM[n]) return;
+    qaM[n] = row;
+  });
+
+  // Roster
+  const rlM = {};
+  if (UF.roster) {
+    const F  = UF.roster.fields;
+    const aC = F.find(c => /agent|employee/i.test(c) && !/lead|super/i.test(c)) ||
+               F.find(c => /^name$/i.test(c));
+    const tC = F.find(c => /team.?lead|supervisor|\btl\b/i.test(c));
+    if (aC && tC) UF.roster.data.forEach(r => {
+      const n = nn(r[aC]); if (n) rlM[n] = (r[tC] || '').trim();
+    });
+  }
+
+  const all = new Set([...Object.keys(agM), ...Object.keys(qaM)]);
+  return [...all].map(n => {
+    const c  = agM[n]  || { raw: n, calls:0, den:0, ht:[], days: new Set() };
+    const st = stM[n]  || { acw:0, hold:0, nr:0 };
+    const qa = qaM[n];
+    const tl = rlM[n]  || '[Team Lead Name]';
+    const avgHT   = c.ht.length ? c.ht.reduce((a,b) => a+b, 0) / c.ht.length : 0;
+    const qaScore = qa ? parseFloat(qa['Evaluation Score Percent']) : null;
+    return {
+      name:      c.raw || n, tl,
+      days:      c.days.size,
+      totalCalls:c.calls,
+      denied:    c.den,
+      avgHT,     avgHTFmt:  fmtDur(Math.round(avgHT)),
+      acw:st.acw,acwFmt:    fmtDur(st.acw),
+      hold:st.hold,holdFmt: fmtDur(st.hold),
+      nr:st.nr,  nrFmt:     fmtDur(st.nr),
+      qaScore,
+      qaEval: (qa?.['Evaluator'] || '').trim() || 'N/A',
+      qaDate: qa ? fd(pd(qa['Date / Time'])) : 'N/A',
+      qaOk:     qaScore !== null ? qaScore >= G.qa : null,
+      ahtOk:    avgHT > 0 ? avgHT <= G.ahtSec : null,
+      deniedOk: c.den < G.denied,
+      acwOk:    st.acw  < G.acwSec,
+      holdOk:   st.hold < G.holdSec,
+      nrOk:     st.nr   < G.nrSec,
+      attendOk: c.days.size >= 5,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ── Render Results ────────────────────────────────────────────────────────────
+function renderResults(agents) {
+  $('resCt').textContent = `${agents.length} agents · Week of ${_wLabel}`;
+  $('resSection').classList.remove('hidden');
+  $('resSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  renderCards(agents);
+}
+
+function filterAgents() {
+  const q = $('searchBox').value.toLowerCase().trim();
+  const filtered = q ? _allAgents.filter(a => a.name.toLowerCase().includes(q) || a.tl.toLowerCase().includes(q)) : _allAgents;
+  $('filterMsg').innerHTML = q && filtered.length === 0
+    ? `<div class="alert alert-a">No agents found matching "${q}"</div>` : '';
+  renderCards(filtered);
+}
+
+function renderCards(agents) {
+  const cont = $('agCards');
+  cont.innerHTML = '';
+  agents.forEach((a, i) => {
+    const realIdx = _allAgents.indexOf(a);
+    const flags = [a.qaOk===false, a.ahtOk===false, !a.deniedOk, !a.acwOk, !a.holdOk, !a.nrOk].filter(Boolean).length;
+    const qaBadge = a.qaScore !== null
+      ? `<span class="badge ${a.qaOk ? 'badge-g':'badge-a'}">QA: ${a.qaScore.toFixed(1)}%</span>`
+      : `<span class="badge badge-x">No QA</span>`;
+    const fBadge = flags
+      ? `<span class="badge badge-a">⚠️ ${flags} flag${flags>1?'s':''}</span>`
+      : `<span class="badge badge-g">✅ On Track</span>`;
+    const mcs = [
+      {l:'QA Score',  v: a.qaScore !== null ? a.qaScore.toFixed(1)+'%':'N/A', ok:a.qaOk},
+      {l:'AHT',       v: a.avgHTFmt,  ok:a.ahtOk},
+      {l:'Denied',    v: a.denied,    ok:a.deniedOk},
+      {l:'ACW',       v: a.acwFmt,    ok:a.acwOk},
+      {l:'Hold',      v: a.holdFmt,   ok:a.holdOk},
+      {l:'Not Ready', v: a.nrFmt,     ok:a.nrOk},
+      {l:'Calls',     v: a.totalCalls,ok:null},
+      {l:'Days',      v: `${a.days}/5`,ok:a.attendOk},
+    ].map(m => `<div class="mc ${m.ok===false?'warn':m.ok===true?'ok':'na'}">
+      <div class="ml">${m.l}</div>
+      <div class="mv">${m.ok===false?'⚠ ':m.ok===true?'✓ ':''}${m.v}</div></div>`).join('');
+
+    cont.innerHTML += `
+    <div class="ag-card" id="agcard-${realIdx}">
+      <div class="ag-hd" onclick="tog(${realIdx})">
+        <div class="ag-lft">
+          <div class="ava">${ini(a.name)}</div>
+          <div>
+            <div class="ag-name">${a.name}</div>
+            <div class="ag-sub">TL: ${a.tl} &nbsp;·&nbsp; ${a.totalCalls} calls &nbsp;·&nbsp; ${a.days}/5 days</div>
+          </div>
+        </div>
+        <div class="ag-rt">${qaBadge}${fBadge}<span class="chev" id="chev${realIdx}">▼</span></div>
+      </div>
+      <div class="ag-body" id="body${realIdx}">
+        <div class="mg">${mcs}</div>
+        <div class="prev-wrap">
+          <div class="prev-bar">
+            <div class="prev-bar-left">
+              <div class="prev-dots">
+                <div class="prev-dot" style="background:#f87171;"></div>
+                <div class="prev-dot" style="background:#fbbf24;"></div>
+                <div class="prev-dot" style="background:#4ade80;"></div>
+              </div>
+              <span>📧 Email Preview</span>
+            </div>
+            <small>Formatted for Outlook — copies as rich text</small>
+          </div>
+          <iframe id="prev${realIdx}" class="prev-frame" sandbox="allow-same-origin"></iframe>
+        </div>
+        <div class="copy-row">
+          <button class="btn btn-green btn-sm" onclick="copyHTML(${realIdx})">📋 Copy Formatted Email</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyPlain(${realIdx})">📄 Copy as Plain Text</button>
+          <span class="copied-msg" id="copiedMsg${realIdx}"></span>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+
+function tog(i) {
+  const body = $(`body${i}`), chev = $(`chev${i}`);
+  const open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  chev.classList.toggle('open', !open);
+  if (!open) {
+    const frame = $(`prev${i}`);
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    doc.open(); doc.write(_emails[i]); doc.close();
+  }
+}
+
+async function copyHTML(i) {
+  try {
+    const blob = new Blob([_emails[i]], { type: 'text/html' });
+    const item = new ClipboardItem({ 'text/html': blob });
+    await navigator.clipboard.write([item]);
+    showCopied(i, '✓ Formatted email copied! Paste directly into Outlook.', 'ok');
+  } catch(e) {
+    copyPlain(i);
+  }
+}
+
+async function copyPlain(i) {
+  const frame = $(`prev${i}`);
+  const txt = frame.contentDocument?.body?.innerText || stripTags(_emails[i]);
+  await navigator.clipboard.writeText(txt);
+  showCopied(i, '✓ Copied as plain text.', 'ok');
+}
+
+function showCopied(i, msg, cls) {
+  const el = $(`copiedMsg${i}`);
+  el.textContent = msg;
+  el.className = `copied-msg ${cls} show`;
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function stripTags(html) { return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+// ── Build HTML Email ──────────────────────────────────────────────────────────
+function buildEmailHTML(a, wLabel, G) {
+  const NAV='#1a2744', BLU='#2563eb', WHT='#ffffff';
+  const GBG='#f0fdf4', GFG='#166534', GBD='#bbf7d0', GHD='#dcfce7';
+  const ABG='#fffbeb', AFG='#92400e', ABD='#fde68a', AHD='#fef3c7';
+  const GRY='#f9fafb', BRD='#e5e7eb', TXT='#1f2937', MID='#6b7280';
+  const fAHT=fmtDur(G.ahtSec), fACW=fmtDur(G.acwSec), fHold=fmtDur(G.holdSec), fNR=fmtDur(G.nrSec);
+
+  const mRow = (label, val, ok, goal) => {
+    const bg  = ok===true ? GBG : ok===false ? ABG : WHT;
+    const st  = ok===true
+      ? `<span style="color:${GFG};font-weight:700;">✅ Met Goal</span>`
+      : ok===false
+        ? `<span style="color:${AFG};font-weight:700;">⚠️ Needs Attention</span>`
+        : `<span style="color:${MID};">—</span>`;
+    const gs  = goal ? ` <span style="color:${MID};font-size:11px;">(Goal: ${goal})</span>` : '';
+    return `<tr style="background:${bg};">
+      <td style="padding:9px 13px;border:1px solid ${BRD};font-weight:600;font-size:13px;font-family:Arial,sans-serif;color:${TXT};width:185px;">${label}</td>
+      <td style="padding:9px 13px;border:1px solid ${BRD};font-size:13px;font-family:'Courier New',monospace;color:${TXT};">${val}${gs}</td>
+      <td style="padding:9px 13px;border:1px solid ${BRD};text-align:center;width:165px;">${st}</td>
+    </tr>`;
+  };
+
+  const qaRow = (l, v) => `<tr>
+    <td style="padding:8px 12px;background:${GRY};font-weight:600;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};width:140px;">${l}</td>
+    <td style="padding:8px 12px;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};color:${TXT};">${v}</td>
+  </tr>`;
+
+  const sHd = (icon, title) => `<p style="font-size:14px;font-weight:700;color:${NAV};font-family:Arial,sans-serif;margin:20px 0 8px;padding-bottom:5px;border-bottom:3px solid ${BLU};">${icon}&nbsp; ${title}</p>`;
+
+  // Flags & wins
+  const flags = [], wins = [];
+  if (a.qaOk===false)   flags.push(`QA Score (${a.qaScore.toFixed(1)}%) — must be ${G.qa}% or above`);
+  if (a.ahtOk===false)  flags.push(`Avg Handle Time (${a.avgHTFmt}) — goal is ≤ ${fAHT}`);
+  if (!a.deniedOk)      flags.push(`Denied Calls (${a.denied}) — goal is below ${G.denied} per week`);
+  if (!a.acwOk)         flags.push(`After Call Work (${a.acwFmt}) — goal is below ${fACW} per week`);
+  if (!a.holdOk)        flags.push(`Hold Time (${a.holdFmt}) — goal is below ${fHold} per week`);
+  if (!a.nrOk)          flags.push(`Not Ready (${a.nrFmt}) — goal is below ${fNR} per week`);
+
+  if (a.attendOk)                wins.push('Perfect attendance and punctuality this week');
+  if (a.qaOk===true)             wins.push(`QA score of ${a.qaScore.toFixed(1)}% — above the ${G.qa}% threshold`);
+  if (a.ahtOk===true&&a.avgHT>0) wins.push(`AHT of ${a.avgHTFmt} — within goal`);
+  if (a.deniedOk && a.denied<=1) wins.push('Denied calls — well within goal');
+  else if (a.deniedOk)           wins.push('Denied calls within goal');
+  if (a.holdOk===true&&a.hold>0) wins.push('Hold time within goal');
+  if (a.acwOk===true&&a.acw>0)   wins.push('After call work within goal');
+
+  // QA note box
+  let qaBox = '';
+  if (a.qaScore === null) {
+    qaBox = `<p style="font-size:13px;font-family:Arial,sans-serif;color:${MID};font-style:italic;margin:0;">No QA evaluation recorded this week.</p>`;
+  } else if (a.qaOk === false) {
+    qaBox = `<table width="620" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr><td style="background:${AHD};border:1px solid ${ABD};border-left:4px solid ${AFG};padding:12px 16px;border-radius:4px;">
+        <p style="font-size:13px;font-weight:700;color:${AFG};font-family:Arial,sans-serif;margin:0 0 5px;">⚠️ Below Threshold — Coaching Review Scheduled</p>
+        <p style="font-size:13px;font-family:Arial,sans-serif;color:${TXT};margin:0;">This score fell below the ${G.qa}% program threshold. Your Team Lead will be scheduling a brief 1:1 to review the evaluation. Please review your QA scorecard before that meeting.</p>
+      </td></tr></table>`;
+  } else {
+    qaBox = `<table width="620" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr><td style="background:${GHD};border:1px solid ${GBD};border-left:4px solid ${GFG};padding:12px 16px;border-radius:4px;">
+        <p style="font-size:13px;font-weight:700;color:${GFG};font-family:Arial,sans-serif;margin:0 0 5px;">✅ Passing Score — Great Work!</p>
+        <p style="font-size:13px;font-family:Arial,sans-serif;color:${TXT};margin:0;">Excellent QA performance this week. Keep up the strong compliance and attention to detail on every call.</p>
+      </td></tr></table>`;
+  }
+
+  const flagsSection = flags.length ? `
+    ${sHd('⚠️','Areas Needing Attention')}
+    ${flags.map(f=>`<p style="font-size:13px;font-family:Arial,sans-serif;color:${TXT};margin:4px 0 4px 8px;">• ${f}</p>`).join('')}` : '';
+
+  const winsSection = wins.length ? `
+    ${sHd('✅','Highlights This Week')}
+    ${wins.map(w=>`<p style="font-size:13px;font-family:Arial,sans-serif;color:${GFG};font-weight:600;margin:4px 0 4px 8px;">• ${w}</p>`).join('')}` : '';
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f1f5f9;margin:0;padding:20px;">
+<table width="660" cellpadding="0" cellspacing="0" align="center" style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.1);">
+<tr><td>
+
+  <table width="660" cellpadding="0" cellspacing="0" style="background:${NAV};">
+    <tr><td style="padding:22px 26px;text-align:center;">
+      <p style="color:${WHT};font-size:20px;font-weight:700;font-family:Arial,sans-serif;margin:0;">WEEKLY PERFORMANCE RECAP</p>
+      <p style="color:#93c5fd;font-size:12px;font-family:Arial,sans-serif;margin:4px 0 0;">Primerica Program &nbsp;|&nbsp; ACD Direct</p>
+    </td></tr>
+  </table>
+
+  <table width="660" cellpadding="0" cellspacing="0">
+  <tr><td style="padding:20px 24px;">
+
+    <table width="612" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:6px;">
+      <tr>
+        <td style="background:${GRY};padding:8px 12px;font-weight:700;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};width:110px;">Week:</td>
+        <td style="padding:8px 12px;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};color:${TXT};">${wLabel}</td>
+      </tr>
+      <tr>
+        <td style="background:${GRY};padding:8px 12px;font-weight:700;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};">Agent:</td>
+        <td style="padding:8px 12px;font-size:13px;font-weight:700;color:${NAV};font-family:Arial,sans-serif;border:1px solid ${BRD};">${a.name}</td>
+      </tr>
+      <tr>
+        <td style="background:${GRY};padding:8px 12px;font-weight:700;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};">Team Lead:</td>
+        <td style="padding:8px 12px;font-size:13px;font-family:Arial,sans-serif;border:1px solid ${BRD};color:${TXT};">${a.tl}</td>
+      </tr>
+    </table>
+
+    ${sHd('📊','Weekly Metrics Snapshot')}
+    <table width="612" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <tr style="background:${BLU};">
+        <td style="padding:9px 13px;color:${WHT};font-weight:700;font-size:13px;font-family:Arial,sans-serif;width:185px;">METRIC</td>
+        <td style="padding:9px 13px;color:${WHT};font-weight:700;font-size:13px;font-family:Arial,sans-serif;">RESULT</td>
+        <td style="padding:9px 13px;color:${WHT};font-weight:700;font-size:13px;font-family:Arial,sans-serif;text-align:center;width:165px;">STATUS</td>
+      </tr>
+      ${mRow('QA Score',        a.qaScore!==null?a.qaScore.toFixed(1)+'%':'N/A', a.qaOk,    `≥ ${G.qa}%`)}
+      ${mRow('Attendance',      `${a.days}/5 Days`,                               a.attendOk, null)}
+      ${mRow('Total Calls',     a.totalCalls,                                     null,       null)}
+      ${mRow('Denied Calls',    a.denied,                                         a.deniedOk,`< ${G.denied}`)}
+      ${mRow('Avg Handle Time', a.avgHTFmt,                                       a.ahtOk,   `≤ ${fAHT}`)}
+      ${mRow('After Call Work', a.acwFmt,                                         a.acwOk,   `< ${fACW}`)}
+      ${mRow('Hold Time',       a.holdFmt,                                        a.holdOk,  `< ${fHold}`)}
+      ${mRow('Not Ready',       a.nrFmt,                                          a.nrOk,    `< ${fNR}`)}
+    </table>
+
+    ${sHd('🎧','QA Review')}
+    <table width="612" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+      ${qaRow('QA Score',    a.qaScore!==null?a.qaScore.toFixed(2)+'%':'N/A')}
+      ${qaRow('Call Date',   a.qaDate)}
+      ${qaRow('Evaluated By',a.qaEval)}
+    </table>
+    ${qaBox}
+    ${flagsSection}
+    ${winsSection}
+
+    <table width="612" cellpadding="0" cellspacing="0" style="margin-top:24px;background:${NAV};border-radius:6px;">
+      <tr><td style="padding:13px 16px;text-align:center;">
+        <p style="color:#93c5fd;font-size:12px;font-family:Arial,sans-serif;margin:0;">Questions? Reach out to your Team Lead directly.</p>
+        <p style="color:#64748b;font-size:11px;font-family:Arial,sans-serif;margin:4px 0 0;">Report generated via Megastars Dashboard &nbsp;|&nbsp; ACD Direct – Primerica Program</p>
+      </td></tr>
+    </table>
+
+  </td></tr>
+  </table>
+</td></tr>
+</table>
+</body></html>`;
+}
+</script>
+</body>
+</html>
